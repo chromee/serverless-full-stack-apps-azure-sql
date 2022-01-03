@@ -24,8 +24,8 @@ namespace GetBusData
             public int RouteId { get; set; }
             public string RouteName { get; set; }
             public int GeoFenceId { get; set; }
-    		public string GeoFenceName { get; set; }          
-		    public string GeoFenceStatus { get; set; }
+            public string GeoFenceName { get; set; }
+            public string GeoFenceStatus { get; set; }
             public DateTime TimestampUTC { get; set; }
         }
 
@@ -45,10 +45,10 @@ namespace GetBusData
         {
             // Get the real-time bus location feed
             var feed = await GetRealTimeFeed();
-            
+
             // Get the routes we want to monitor
             var monitoredRoutes = await GetMonitoredRoutes();
-            
+
             // Filter only the routes we want to monitor
             var buses = feed.Entities.FindAll(e => monitoredRoutes.Contains(e.Vehicle.Trip.RouteId));
 
@@ -58,9 +58,9 @@ namespace GetBusData
             var activatedGeofences = await ProcessGeoFences(buses);
 
             // Send notifications
-            foreach(var gf in activatedGeofences)
+            foreach (var gf in activatedGeofences)
             {
-                _log.LogInformation($"Vehicle {gf.VehicleId}, route {gf.RouteName}, {gf.GeoFenceStatus} GeoFence {gf.GeoFenceName} at {gf.TimestampUTC} UTC");                    
+                _log.LogInformation($"Vehicle {gf.VehicleId}, route {gf.RouteName}, {gf.GeoFenceStatus} GeoFence {gf.GeoFenceName} at {gf.TimestampUTC} UTC");
                 await TriggerLogicApp(gf);
             }
 
@@ -81,7 +81,7 @@ namespace GetBusData
             using var conn = new SqlConnection(AZURE_CONN_STRING);
             var queryResult = await conn.QuerySingleOrDefaultAsync<string>("web.GetMonitoredRoutes", commandType: CommandType.StoredProcedure);
             var result = JArray.Parse(queryResult);
-            return  result.Select(e => (int)(e["RouteId"])).ToList();            
+            return result.Select(e => (int)(e["RouteId"])).ToList();
         }
 
         private async Task<List<ActivatedGeoFence>> ProcessGeoFences(List<GTFS.RealTime.Entity> buses)
@@ -106,16 +106,16 @@ namespace GetBusData
 
                 busData.Add(d);
             });
-            
+
             if (buses.Count() == 0) return new List<ActivatedGeoFence>();
 
             using var conn = new SqlConnection(AZURE_CONN_STRING);
             {
-                var queryResult = await conn.QuerySingleOrDefaultAsync<string>("web.AddBusData", new { payload = busData.ToString() },  commandType: CommandType.StoredProcedure);
+                var queryResult = await conn.QuerySingleOrDefaultAsync<string>("web.AddBusData", new { payload = busData.ToString() }, commandType: CommandType.StoredProcedure);
                 var result = JsonConvert.DeserializeObject<List<ActivatedGeoFence>>(queryResult ?? "[]");
                 _log.LogInformation($"Found {result.Count()} buses activating a geofence");
                 return result;
-            }            
+            }
         }
 
         public async Task TriggerLogicApp(ActivatedGeoFence geoFence)
@@ -130,7 +130,7 @@ namespace GetBusData
             logicAppResult.EnsureSuccessStatusCode();
 
             _log.LogInformation($"[{geoFence.VehicleId}/{geoFence.DirectionId}/{geoFence.GeoFenceId}] WebHook called successfully");
-        }    
+        }
 
     }
 }
